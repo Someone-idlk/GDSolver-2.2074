@@ -45,11 +45,9 @@ class $modify(GJGameLevel) {
         if (progressBlockActive()) { ++g_blockedProgress; return; }
         GJGameLevel::savePercentage(percent, isPracticeMode, clicks, attempts, isChkValid);
     }
-    // Geode 4.6.3 / GD 2.2074 binds this method with exactly two arguments.
-    void saveNewScore(int value, int type) {
-        if (progressBlockActive()) { ++g_blockedProgress; return; }
-        GJGameLevel::saveNewScore(value, type);
-    }
+    // GJGameLevel::saveNewScore is inline in the GD 2.2074 bindings and CANNOT
+    // be hooked by Geode. NoRecordGuard blocks records at the PlayLayer call
+    // sites instead; keep savePercentage as the separate observable hook.
 };
 
 class $modify(GameManager) {
