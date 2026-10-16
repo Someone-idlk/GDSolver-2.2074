@@ -1,44 +1,86 @@
 name: Import repaired GDSolver source
 
 on:
+  workflow_dispatch:
   push:
     paths:
-      - 'GDSolver_2.2074_repaired_source.zip'
-  workflow_dispatch:
+      - '.github/workflows/import-source.yml'
 
 permissions:
   contents: write
 
+concurrency:
+  group: gdsolver-source-import
+  cancel-in-progress: false
+
 jobs:
   import:
-    name: Unpack GDSolver into repository
+    name: Extract ZIP and commit source
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
-      - name: Extract uploaded ZIP
+
+      - name: Verify uploaded ZIP and safely extract its project files
         shell: bash
         run: |
           set -euo pipefail
-          test -f GDSolver_2.2074_repaired_source.zip || { echo "Upload GDSolver_2.2074_repaired_source.zip to repository root first"; exit 1; }
-          mkdir -p .gdsolver-import
-          unzip -q GDSolver_2.2074_repaired_source.zip -d .gdsolver-import
-          test -f .gdsolver-import/GDSolver-2.2074-main/mod.json || { echo "Unexpected archive layout"; exit 1; }
-          cp -a .gdsolver-import/GDSolver-2.2074-main/. .
-          rm -rf .gdsolver-import
-          git rm -f --ignore-unmatch GDSolver_2.2074_repaired_source.zip
-      - name: Commit imported source
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import zipfile
+          archive = Path("GDSolver_2.2074_repaired_source.zip")
+          if not archive.is_file():
+              raise SystemExit("Missing ZIP: upload GDSolver_2.2074_repaired_source.zip to the repository root.")
+          with zipfile.ZipFile(archive) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Invalid ZIP entry: {bad}")
+              names = [PurePosixPath(info.filename) for info in z.infolist() if not info.is_dir()]
+              roots = {parts.parts[0] for parts in names}
+              if len(roots) != 1:
+                  raise SystemExit(f"Expected one project root folder; got {sorted(roots)}")
+              root = next(iter(roots))
+              required = {"mod.json", "CMakeLists.txt", "src/main.cpp", ".github/workflows/build.yml"}
+              found = {str(PurePosixPath(*p.parts[1:])) for p in names}
+              missing = required - found
+              if missing:
+                  raise SystemExit(f"Archive is missing project files: {sorted(missing)}")
+              extracted = 0
+              for info in z.infolist():
+                  p = PurePosixPath(info.filename)
+                  if info.is_dir():
+                      continue
+                  rel = PurePosixPath(*p.parts[1:])
+                  if not rel.parts or any(seg in (".", "..") for seg in rel.parts):
+                      raise SystemExit(f"Unsafe path in archive: {info.filename!r}")
+                  # Keep the importer itself intact (archive should not contain it).
+                  if str(rel) == ".github/workflows/import-source.yml":
+                      continue
+                  dst = Path(*rel.parts)
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  dst.write_bytes(z.read(info))
+                  extracted += 1
+              print(f"Extracted {extracted} project files from {root}/")
+          PY
+          test -f mod.json
+          test -f .github/workflows/build.yml
+          test -f src/main.cpp
+          echo "Validated project layout: mod.json, src/, build workflow."
+
+      - name: Commit extracted project to GitHub
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f --ignore-unmatch GDSolver_2.2074_repaired_source.zip
           git add -A
+          git status --short | head -60 || true
           if git diff --cached --quiet; then
-            echo "Nothing new to import."
+            echo "No new source files to commit."
           else
-            git commit -m "Import repaired GDSolver 2.2074 source"
-            git push
+            git commit -m "Import repaired GDSolver 2.2074 project source"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
