@@ -1,0 +1,44 @@
+name: Import repaired GDSolver source
+
+on:
+  push:
+    paths:
+      - 'GDSolver_2.2074_repaired_source.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    name: Unpack GDSolver into repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Extract uploaded ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f GDSolver_2.2074_repaired_source.zip || { echo "Upload GDSolver_2.2074_repaired_source.zip to repository root first"; exit 1; }
+          mkdir -p .gdsolver-import
+          unzip -q GDSolver_2.2074_repaired_source.zip -d .gdsolver-import
+          test -f .gdsolver-import/GDSolver-2.2074-main/mod.json || { echo "Unexpected archive layout"; exit 1; }
+          cp -a .gdsolver-import/GDSolver-2.2074-main/. .
+          rm -rf .gdsolver-import
+          git rm -f --ignore-unmatch GDSolver_2.2074_repaired_source.zip
+      - name: Commit imported source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing new to import."
+          else
+            git commit -m "Import repaired GDSolver 2.2074 source"
+            git push
+          fi
