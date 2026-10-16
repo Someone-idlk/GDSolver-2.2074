@@ -142,7 +142,7 @@ inline const cocos2d::ccColor3B kWhite{255, 255, 255};
 inline const cocos2d::ccColor3B kDim{110, 110, 110};
 inline const cocos2d::ccColor3B kRefused{255, 140, 140};
 
-class Popup : public geode::Popup {
+class Popup : public geode::Popup<> {
 public:
     static Popup* create(GJGameLevel* level, LevelFacts facts, std::function<void()> play) {
         auto* r = new Popup();
@@ -179,7 +179,7 @@ protected:
 
     bool init(GJGameLevel* level, LevelFacts facts, std::function<void()> play) {
         using namespace cocos2d;
-        if (!geode::Popup::init(kW, kH)) return false;
+        if (!geode::Popup<>::init(kW, kH)) return false;
         this->setID("play-menu"_spr);
         m_level = level;
         m_facts = facts;
@@ -347,7 +347,7 @@ protected:
     // whose press the game then turned back with an alert of its own -- is withdrawn with it.
     void onClose(CCObject* sender) override {
         if (!m_started && g_uiArmedLevel == m_level.data()) g_uiArmedLevel = nullptr;
-        geode::Popup::onClose(sender);
+        geode::Popup<>::onClose(sender);
     }
 
     void keyDown(cocos2d::enumKeyCodes key, double p1) override {
@@ -357,7 +357,7 @@ protected:
             refresh();
             return;
         }
-        geode::Popup::keyDown(key, p1);
+        geode::Popup<>::keyDown(key, p1);
     }
 };
 
