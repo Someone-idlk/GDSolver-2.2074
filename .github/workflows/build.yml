@@ -1,0 +1,85 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dp-core-smoke:
+    name: Offline DP smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure DP tests
+        run: cmake -S . -B build-dp -DCMAKE_BUILD_TYPE=Release -DGDSOLVER_BUILD_MOD=OFF
+      - name: Compile DP tests
+        run: cmake --build build-dp --target dptest --parallel 2
+      - name: Run DP tests
+        run: ./build-dp/dp/dptest
+      - name: Verify GD 2.2074 safety guards
+        run: python3 py/test_22074_safety.py
+
+  windows:
+    name: Windows Geode package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Geode CLI
+        uses: geode-sdk/cli/.github/actions/setup@main
+      - name: Make temporary Geode profile
+        shell: pwsh
+        run: |
+          $profile = "cli-profile"
+          New-Item -ItemType Directory -Force -Path "$profile/geode/mods" | Out-Null
+          geode profile add --name GithubActions "$profile/GeometryDash.exe" win
+      - name: Clone Geode 4.6.3 SDK
+        shell: pwsh
+        run: |
+          git clone --recursive --branch v4.6.3 https://github.com/geode-sdk/geode.git geode-sdk-clone
+          geode sdk install "$PWD/geode-sdk-clone"
+      - name: Install Windows Geode SDK binaries
+        shell: pwsh
+        run: geode sdk install-binaries --platform windows --version 4.6.3
+      - name: Apply cocos header patch
+        shell: pwsh
+        run: |
+          $headers = @(Get-ChildItem -Path geode-sdk-clone -Recurse -Filter "CCSpriteBatchNode.h" -File)
+          if ($headers.Count -eq 0) { throw "Missing CCSpriteBatchNode.h" }
+          $patched = 0
+          foreach ($header in $headers) {
+            $source = Get-Content $header.FullName -Raw
+            if ($source.Contains("void manualSortAllChildren(void);")) {
+              $replacement = "public:" + [Environment]::NewLine + "    void manualSortAllChildren(void);" + [Environment]::NewLine + "protected:"
+              Set-Content -Path $header.FullName -Value ($source.Replace("void manualSortAllChildren(void);", $replacement)) -Encoding UTF8
+              $patched++
+            }
+          }
+          if ($patched -eq 0) { throw "Unable to patch cocos header" }
+      - name: Install Ninja
+        shell: pwsh
+        run: choco install ninja -y --no-progress
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGEODE_SDK="$PWD/geode-sdk-clone"
+      - name: Compile mod
+        shell: pwsh
+        run: cmake --build build --config Release --verbose
+      - name: Package mod
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          $packages = @(Get-ChildItem -Path build -Recurse -Filter "*.geode" -File)
+          if ($packages.Count -eq 0) { throw "Build completed without a .geode package" }
+          foreach ($pkg in $packages) { Copy-Item $pkg.FullName "package/$($pkg.Name)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gdsolver-geode-win-2.2074
+          path: package/*.geode
+          if-no-files-found: error
