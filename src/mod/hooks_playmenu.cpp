@@ -142,11 +142,11 @@ inline const cocos2d::ccColor3B kWhite{255, 255, 255};
 inline const cocos2d::ccColor3B kDim{110, 110, 110};
 inline const cocos2d::ccColor3B kRefused{255, 140, 140};
 
-class Popup : public geode::Popup<> {
+class Popup : public geode::Popup<GJGameLevel*, LevelFacts, std::function<void()>> {
 public:
     static Popup* create(GJGameLevel* level, LevelFacts facts, std::function<void()> play) {
         auto* r = new Popup();
-        if (r->init(level, facts, std::move(play))) { r->autorelease(); return r; }
+        if (r->initAnchored(kW, kH, level, facts, std::move(play))) { r->autorelease(); return r; }
         delete r;
         return nullptr;
     }
@@ -177,9 +177,8 @@ protected:
     static constexpr float kNoteY = 64.f, kStartY = 32.f;   // from the bottom edge
     static constexpr float kRngNoteY = 78.f;   // just above the bot note, below the Coins row
 
-    bool init(GJGameLevel* level, LevelFacts facts, std::function<void()> play) {
+    bool setup(GJGameLevel* level, LevelFacts facts, std::function<void()> play) override {
         using namespace cocos2d;
-        if (!geode::Popup<>::init(kW, kH)) return false;
         this->setID("play-menu"_spr);
         m_level = level;
         m_facts = facts;
@@ -347,17 +346,17 @@ protected:
     // whose press the game then turned back with an alert of its own -- is withdrawn with it.
     void onClose(CCObject* sender) override {
         if (!m_started && g_uiArmedLevel == m_level.data()) g_uiArmedLevel = nullptr;
-        geode::Popup<>::onClose(sender);
+        geode::Popup<GJGameLevel*, LevelFacts, std::function<void()>>::onClose(sender);
     }
 
-    void keyDown(cocos2d::enumKeyCodes key, double p1) override {
+    void keyDown(cocos2d::enumKeyCodes key) override {
         if (key == cocos2d::enumKeyCodes::KEY_Enter) { onStart(nullptr); return; }
         if (key >= cocos2d::enumKeyCodes::KEY_One && key <= cocos2d::enumKeyCodes::KEY_Three) {
             m_mode = (int)key - (int)cocos2d::enumKeyCodes::KEY_One;
             refresh();
             return;
         }
-        geode::Popup<>::keyDown(key, p1);
+        geode::Popup<GJGameLevel*, LevelFacts, std::function<void()>>::keyDown(key);
     }
 };
 
