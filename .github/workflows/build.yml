@@ -42,7 +42,9 @@ jobs:
         shell: pwsh
         run: |
           git clone --recursive --branch v4.6.3 https://github.com/geode-sdk/geode.git geode-sdk-clone
-          geode sdk install "$PWD/geode-sdk-clone"
+          $sdkPath = Join-Path (Get-Location).Path "geode-sdk-clone"
+          "GEODE_SDK=$sdkPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "GEODE_SDK configured at $sdkPath"
       - name: Install Windows Geode SDK binaries
         shell: pwsh
         run: geode sdk install-binaries --platform windows --version 4.6.3
