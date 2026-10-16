@@ -1,0 +1,34 @@
+{
+	"geode": "4.6.3",
+	"gd": {
+		"win": "2.2074"
+	},
+	"id": "gdsolver.solver",
+	"name": "GD Solver",
+	"version": "v0.3.2-2.2074.2",
+	"developers": [
+		"gdsolver"
+	],
+	"description": "GD Solver source port for Geometry Dash 2.2074. Unverified 2.2081 RNG writes disabled; in-game binary validation still required.",
+	"tags": [
+		"gameplay",
+		"utility",
+		"offline",
+		"cheat"
+	],
+	"links": {
+		"source": "https://github.com/gdsolver/gdsolver"
+	},
+	"issues": {
+		"info": "Report problems on the GitHub issue tracker.",
+		"url": "https://github.com/gdsolver/gdsolver/issues"
+	},
+	"settings": {
+		"play-menu": {
+			"type": "bool",
+			"name": "Choose the mode on Play",
+			"description": "A level's play button opens a menu: Normal, Replay or Solve. Off, the play button just plays the level, as without the mod.",
+			"default": true
+		}
+	}
+}
