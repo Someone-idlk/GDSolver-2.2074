@@ -45,10 +45,10 @@ class $modify(GJGameLevel) {
         if (progressBlockActive()) { ++g_blockedProgress; return; }
         GJGameLevel::savePercentage(percent, isPracticeMode, clicks, attempts, isChkValid);
     }
-    void saveNewScore(int value, int type, int ticks, int clicks, int coins,
-                      gd::string inputs, bool save) {
+    // Geode 4.6.3 / GD 2.2074 binds this method with exactly two arguments.
+    void saveNewScore(int value, int type) {
         if (progressBlockActive()) { ++g_blockedProgress; return; }
-        GJGameLevel::saveNewScore(value, type, ticks, clicks, coins, inputs, save);
+        GJGameLevel::saveNewScore(value, type);
     }
 };
 
